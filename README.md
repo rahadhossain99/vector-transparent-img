@@ -1,0 +1,1 @@
+# vector-transparent-img
