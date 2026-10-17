@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ম্যাপ ডেটা এক্সট্রাক্টর অ্যাপ</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f4f1ea;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .box {
+      background: #fff;
+      padding: 32px;
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+      border: 1px solid #e2dcd0;
+    }
+    h2 { margin-top: 0; color: #0f6b4f; }
+    p { color: #555; font-size: 15px; line-height: 1.6; }
+    .upload-area {
+      border: 2px dashed #0f6b4f;
+      border-radius: 14px;
+      padding: 30px 20px;
+      margin: 20px 0;
+      background: #f3faf6;
+      cursor: pointer;
+      display: block;
+      font-weight: bold;
+      color: #0f6b4f;
+    }
+    .upload-area:hover { background: #e6f4ed; }
+    input[type="file"] { display: none; }
+    .status {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 600;
+      display: none;
+    }
+    .ok { background: #e3f0ea; color: #0b4d36; display: block; }
+    .err { background: #fdeceb; color: #8a1f1a; display: block; }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h2>🗺️ ম্যাপ ডেটা এক্সট্রাক্টর</h2>
+  <p>আপনার কাছে থাকা <b>unseenbangladesh_com_source.txt</b> ফাইলটি নিচে আপলোড করুন। এটি ফাইল থেকে অপ্রয়োজনীয় সব কোড বাদ দিয়ে শুধুমাত্র ৬৪ জেলার ম্যাপ ও বাংলা নামটুকু নিয়ে <b>bd-districts.json</b> হিসেবে অটোমেটিক ডাউনলোড করে দেবে!</p>
+
+  <label class="upload-area">
+    📂 এখানে ক্লিক করে সোর্স ফাইলটি সিলেক্ট করুন
+    <input type="file" id="fileInput" accept=".txt,.html">
+  </label>
+
+  <div id="status" class="status"></div>
+</div>
+
+<script>
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const status = document.getElementById('status');
+  status.className = 'status';
+  status.textContent = 'ফাইল প্রসেস হচ্ছে...';
+  status.style.display = 'block';
+
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    const content = event.target.result;
+
+    try {
+      // ১. সোর্স কোড থেকে শুধুমাত্র const DATA = {...}; বের করা
+      const dataMatch = content.match(/const\s+DATA\s*=\s*(\{[\s\S]*?\});/);
+      // ২. সোর্স কোড থেকে শুধুমাত্র const BN = {...}; (বাংলা নাম) বের করা
+      const bnMatch = content.match(/const\s+BN\s*=\s*(\{[\s\S]*?\});/);
+      // ৩. বিভাগের বাংলা নাম বের করা
+      const divMatch = content.match(/const\s+DIV_BN\s*=\s*(\{[\s\S]*?\});/);
+
+      if (!dataMatch) {
+        throw new Error("ফাইলের ভেতর ম্যাপের DATA খুঁজে পাওয়া যায়নি!");
+      }
+
+      const mapData = JSON.parse(dataMatch[1]);
+      const bnNames = bnMatch ? JSON.parse(bnMatch[1]) : {};
+
+      // শুধুমাত্র প্রয়োজনীয় অংশগুলো নিয়ে নতুন ক্লিন JSON তৈরি
+      const cleanJson = {
+        w: mapData.w,
+        h: mapData.h,
+        bn: bnNames,
+        f: mapData.f
+      };
+
+      // JSON ফরম্যাটে অটোমেটিক ডাউনলোড করা
+      const blob = new Blob([JSON.stringify(cleanJson)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "bd-districts.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      status.className = 'status ok';
+      status.innerHTML = `✅ সফলভাবে শুধুমাত্র ম্যাপের অংশটুকু (${mapData.f.length}টি জেলা) <b>bd-districts.json</b> নামে ডাউনলোড হয়েছে! এবার এটি GitHub-এ আপলোড করুন।`;
+    } catch (err) {
+      status.className = 'status err';
+      status.textContent = '❌ ত্রুটি: ' + err.message;
+    }
+  };
+  reader.readAsText(file);
+});
+</script>
+
+</body>
+</html>
